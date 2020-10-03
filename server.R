@@ -1,6 +1,6 @@
 library(shiny)
 
-shinyServer(function(input, output) {
+shinyServer(function(input, output, session) {
     
     source("../BezeirDrawer/decasteljau.R")
     dinamic = reactiveValues()
@@ -15,12 +15,12 @@ shinyServer(function(input, output) {
         activename = dinamic$activename
         dump(c('tocke',
                'activename'),
-             file = paste("../BezeirDrawer/", input$filename, sep = ''))
+             file = paste("../BezeirDrawer/drawings/", input$filename, sep = ''))
     })
     
     observeEvent(input$odpri, {
         tryCatch({
-            source(paste("../BezeirDrawer/", input$filename, sep = ''))
+            source(paste("../BezeirDrawer/drawings/", input$filename, sep = ''))
             dinamic$tocke = tocke
             dinamic$activename = activename
             dinamic$live_tocke_x = c()
@@ -51,12 +51,15 @@ shinyServer(function(input, output) {
         }else{
             if(dinamic$selectedpoint == 0){
                 nearest_len = 1000.0
-                for(i in 1:length(dinamic$live_tocke_x)){
-                    len = (input$canvasclick$x - dinamic$live_tocke_x[i])^2 +
-                          (input$canvasclick$y - dinamic$live_tocke_y[i])^2
-                    if(len < nearest_len){
-                        dinamic$selectedpoint = i
-                        nearest_len = len
+                n = length(dinamic$live_tocke_x)
+                if(n > 0){
+                    for(i in 1:n){
+                        len = (input$canvasclick$x - dinamic$live_tocke_x[i])^2 +
+                              (input$canvasclick$y - dinamic$live_tocke_y[i])^2
+                        if(len < nearest_len){
+                            dinamic$selectedpoint = i
+                            nearest_len = len
+                        }
                     }
                 }
             }else{
@@ -71,6 +74,9 @@ shinyServer(function(input, output) {
         dinamic$live_tocke_x = c()
         dinamic$live_tocke_y = c()
         dinamic$selectedpoint = 0
+        updateSelectInput(session, 'mode', 'Mode:',
+                    choices = c('Adding', 'Moving'),
+                    selected = 'Adding')
     })
     
     observeEvent(input$addCurve, {
@@ -85,6 +91,9 @@ shinyServer(function(input, output) {
         dinamic$live_tocke_x = c()
         dinamic$live_tocke_y = c()
         dinamic$selectedpoint = 0
+        updateSelectInput(session, 'mode', 'Mode:',
+                          choices = c('Adding', 'Moving'),
+                          selected = 'Adding')
     })
 
     output$canvas <- renderPlot({
