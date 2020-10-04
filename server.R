@@ -9,6 +9,7 @@ shinyServer(function(input, output, session) {
     dinamic$selectedpoint = 0
     dinamic$tocke = list()
     dinamic$activename = 1
+    dinamic$cp_visible = TRUE
     
     observeEvent(input$shrani, {
         tocke = dinamic$tocke
@@ -39,16 +40,14 @@ shinyServer(function(input, output, session) {
     })
     
     observeEvent(input$mode, {
-        if(input$mode == 'Adding'){
-            dinamic$selectedpoint = 0
-        }
+        dinamic$selectedpoint = 0
     })
     
     observeEvent(input$canvasclick, {
         if(input$mode == 'Adding'){
             dinamic$live_tocke_x = c(dinamic$live_tocke_x, input$canvasclick$x)
             dinamic$live_tocke_y = c(dinamic$live_tocke_y, input$canvasclick$y)
-        }else{
+        }else if(input$mode == 'Moving live point'){
             if(dinamic$selectedpoint == 0){
                 nearest_len = 1000.0
                 n = length(dinamic$live_tocke_x)
@@ -67,6 +66,50 @@ shinyServer(function(input, output, session) {
                 dinamic$live_tocke_y[dinamic$selectedpoint] = input$canvasclick$y
                 dinamic$selectedpoint = 0
             }
+        }else{
+            ##moving live curve
+            if(dinamic$selectedpoint == 0){
+                nearest_len = 1000.0
+                n = length(dinamic$live_tocke_x)
+                if(n > 0){
+                    for(i in 1:n){
+                        len = (input$canvasclick$x - dinamic$live_tocke_x[i])^2 +
+                            (input$canvasclick$y - dinamic$live_tocke_y[i])^2
+                        if(len < nearest_len){
+                            dinamic$selectedpoint = i
+                            nearest_len = len
+                        }
+                    }
+                }
+            }else{
+                dx = input$canvasclick$x - dinamic$live_tocke_x[dinamic$selectedpoint]
+                dy = input$canvasclick$y - dinamic$live_tocke_y[dinamic$selectedpoint]
+                for(i in 1:length(dinamic$live_tocke_x)){
+                    dinamic$live_tocke_x[i] = dinamic$live_tocke_x[i] + dx
+                    dinamic$live_tocke_y[i] = dinamic$live_tocke_y[i] + dy
+                }
+                dinamic$selectedpoint = 0
+            }
+        }
+    })
+    
+    observeEvent(input$canvashover, {
+        if(!is.null(input$canvashover)){
+            if(input$mode == 'Moving live point'){
+                if(dinamic$selectedpoint > 0){
+                    dinamic$live_tocke_x[dinamic$selectedpoint] = input$canvashover$x
+                    dinamic$live_tocke_y[dinamic$selectedpoint] = input$canvashover$y
+                }
+            }else if(input$mode == 'Moving live curve'){
+                if(dinamic$selectedpoint > 0){
+                    dx = input$canvashover$x - dinamic$live_tocke_x[dinamic$selectedpoint]
+                    dy = input$canvashover$y - dinamic$live_tocke_y[dinamic$selectedpoint]
+                    for(i in 1:length(dinamic$live_tocke_x)){
+                        dinamic$live_tocke_x[i] = dinamic$live_tocke_x[i] + dx
+                        dinamic$live_tocke_y[i] = dinamic$live_tocke_y[i] + dy
+                    }
+                }
+            }
         }
     })
     
@@ -75,7 +118,9 @@ shinyServer(function(input, output, session) {
         dinamic$live_tocke_y = c()
         dinamic$selectedpoint = 0
         updateSelectInput(session, 'mode', 'Mode:',
-                    choices = c('Adding', 'Moving'),
+                    choices = c('Adding',
+                                'Moving live point',
+                                'Moving live curve'),
                     selected = 'Adding')
     })
     
@@ -92,8 +137,34 @@ shinyServer(function(input, output, session) {
         dinamic$live_tocke_y = c()
         dinamic$selectedpoint = 0
         updateSelectInput(session, 'mode', 'Mode:',
-                          choices = c('Adding', 'Moving'),
+                          choices = c('Adding',
+                                      'Moving live point',
+                                      'Moving live curve'),
                           selected = 'Adding')
+    })
+    
+    observeEvent(input$cp_vis_change, {
+        if(dinamic$cp_visible){
+            dinamic$cp_visible = FALSE
+        }else{
+            dinamic$cp_visible = TRUE
+        }
+    })
+    
+    observeEvent(input$clear, {
+        dinamic$live_tocke_x = c()
+        dinamic$live_tocke_y = c()
+        dinamic$selectedpoint = 0
+        dinamic$tocke = list()
+        dinamic$activename = 1
+    })
+    
+    output$cp_visibility <- renderUI({
+        lbl = 'Show control points'
+        if(dinamic$cp_visible){
+            lbl = 'Hide control points'
+        }
+        actionButton('cp_vis_change', lbl)
     })
 
     output$canvas <- renderPlot({
@@ -124,17 +195,19 @@ shinyServer(function(input, output, session) {
                                 t_series)
             lines(tocke[1,],
                   tocke[2,])
-            barve = c()
-            st_tock = dim(b)[2]
-            for(i in 1:st_tock){
-                barve = c(barve, rgb((st_tock-i)/st_tock,
-                                     i/st_tock,
-                                     0,
-                                     1))
+            if(dinamic$cp_visible){
+                barve = c()
+                st_tock = dim(b)[2]
+                for(i in 1:st_tock){
+                    barve = c(barve, rgb((st_tock-i)/st_tock,
+                                         i/st_tock,
+                                         0,
+                                         1))
+                }
+                points(b[1,],
+                       b[2,],
+                       col = barve)
             }
-            points(b[1,],
-                   b[2,],
-                   col = barve)
         }
     })
 })
