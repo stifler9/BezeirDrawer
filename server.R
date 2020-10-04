@@ -11,6 +11,7 @@ shinyServer(function(input, output, session) {
     dinamic$activename = 1
     dinamic$cp_visible = TRUE
     
+    ### file actions
     observeEvent(input$shrani, {
         tocke = dinamic$tocke
         activename = dinamic$activename
@@ -39,10 +40,20 @@ shinyServer(function(input, output, session) {
         )
     })
     
+    observeEvent(input$clear, {
+        dinamic$live_tocke_x = c()
+        dinamic$live_tocke_y = c()
+        dinamic$selectedpoint = 0
+        dinamic$tocke = list()
+        dinamic$activename = 1
+    })
+    ###
+    
     observeEvent(input$mode, {
         dinamic$selectedpoint = 0
     })
     
+    ### plot mouse contol
     observeEvent(input$canvasclick, {
         if(input$mode == 'Adding'){
             dinamic$live_tocke_x = c(dinamic$live_tocke_x, input$canvasclick$x)
@@ -112,7 +123,9 @@ shinyServer(function(input, output, session) {
             }
         }
     })
+    ###
     
+    ### curve control
     observeEvent(input$removeCurve, {
         dinamic$live_tocke_x = c()
         dinamic$live_tocke_y = c()
@@ -142,21 +155,15 @@ shinyServer(function(input, output, session) {
                                       'Moving live curve'),
                           selected = 'Adding')
     })
+    ###
     
+    ### hide/show control points
     observeEvent(input$cp_vis_change, {
         if(dinamic$cp_visible){
             dinamic$cp_visible = FALSE
         }else{
             dinamic$cp_visible = TRUE
         }
-    })
-    
-    observeEvent(input$clear, {
-        dinamic$live_tocke_x = c()
-        dinamic$live_tocke_y = c()
-        dinamic$selectedpoint = 0
-        dinamic$tocke = list()
-        dinamic$activename = 1
     })
     
     output$cp_visibility <- renderUI({
@@ -166,7 +173,8 @@ shinyServer(function(input, output, session) {
         }
         actionButton('cp_vis_change', lbl)
     })
-
+    ###
+    
     output$canvas <- renderPlot({
         n = length(dinamic$live_tocke_x)
         t_series = seq(0,1,0.01)
@@ -174,7 +182,9 @@ shinyServer(function(input, output, session) {
              dinamic$live_tocke_y,
              xlim = c(0,1),
              ylim = c(0,1),
-             col = 'blue', type = 'b')
+             col = 'blue', type = 'b',
+             xlab = 'x',
+             ylab = 'y')
         if(dinamic$selectedpoint > 0){
             points(dinamic$live_tocke_x[dinamic$selectedpoint],
                    dinamic$live_tocke_y[dinamic$selectedpoint],

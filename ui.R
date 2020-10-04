@@ -23,26 +23,38 @@ shinyUI(fluidPage(
                        height = '650px'),
             wellPanel(
                 column(4,
-                    selectInput('mode', 'Mode:',
-                                choices = c('Adding',
-                                            'Moving live point',
-                                            'Moving live curve'),
-                                size = 3,
-                                selected = 'Adding',
-                                selectize = FALSE)
+                    fluidRow(
+                        selectInput('mode', 'Mode:',
+                                    choices = c('Adding',
+                                                'Moving live point',
+                                                'Moving live curve'),
+                                    size = 3,
+                                    selected = 'Adding',
+                                    selectize = FALSE)
+                    ),
+                    fluidRow(
+                        column(4,
+                               actionButton('addCurve', 'Add Curve to Plot')
+                        ),
+                        column(4,
+                               actionButton('removeCurve', 'Remove Curve')
+                        )
+                        ### todo remove selected point
+                        #column(4,
+                        #       actionButton('removePoint', 'Remove selected point')
+                        #)
+                    )
                 ),
                 column(4,
                     textInput('filename', 'File name:', value = 'MyDrawing.R'),
-                    actionButton('shrani', 'Save drawing'),
-                    actionButton('odpri', 'Open drawing'),
-                    actionButton('clear', 'Clear All')
+                    wellPanel(
+                        actionButton('shrani', 'Save drawing'),
+                        actionButton('odpri', 'Open drawing'),
+                        actionButton('clear', 'Clear All')
+                    )
                 ),
                 column(4,
-                       uiOutput('cp_visibility'),
-                       wellPanel(
-                           actionButton('addCurve', 'Add Curve to Plot'),
-                           actionButton('removeCurve', 'Remove Curve')
-                       )
+                       uiOutput('cp_visibility')
                 )
             ),
             width = '100%'
