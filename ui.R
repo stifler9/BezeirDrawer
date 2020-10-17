@@ -25,16 +25,20 @@ shinyUI(fluidPage(
                 column(4,
                     fluidRow(
                         selectInput('mode', 'Mode:',
-                                    choices = c('Adding',
+                                    choices = c('Adding to curve',
+                                                'New curve',
                                                 'Moving live point',
                                                 'Moving live curve'),
-                                    size = 3,
-                                    selected = 'Adding',
+                                    size = 4,
+                                    selected = 'New curve',
                                     selectize = FALSE)
                     ),
                     fluidRow(
                         column(4,
                                actionButton('addCurve', 'Add Curve to Plot')
+                        ),
+                        column(4,
+                               actionButton('selectCurve', 'Select Curve')
                         ),
                         column(4,
                                actionButton('removeCurve', 'Remove Curve')

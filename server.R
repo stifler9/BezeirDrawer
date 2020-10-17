@@ -4,11 +4,15 @@ shinyServer(function(input, output, session) {
     
     source("../BezeirDrawer/decasteljau.R")
     dinamic = reactiveValues()
-    dinamic$live_tocke_x = c()
-    dinamic$live_tocke_y = c()
-    dinamic$selectedpoint = 0
+    ## curves to edit
+    dinamic$live_tocke_x = list()
+    dinamic$live_tocke_y = list()
+    dinamic$selectedcurve = 0
+    dinamic$selectedpoint = 0 # on selected curve
+    
     dinamic$tocke = list()
     dinamic$activename = 1
+    
     dinamic$cp_visible = TRUE
     
     ### file actions
@@ -24,9 +28,10 @@ shinyServer(function(input, output, session) {
         tryCatch({
             source(paste("../BezeirDrawer/drawings/", input$filename, sep = ''))
             dinamic$tocke = tocke
-            dinamic$activename = activename
-            dinamic$live_tocke_x = c()
-            dinamic$live_tocke_y = c()
+            
+            dinamic$live_tocke_x = list()
+            dinamic$live_tocke_y = list()
+            dinamic$selectedcurve = 0
             dinamic$selectedpoint = 0
             },
             error=function(cond) {
@@ -41,8 +46,9 @@ shinyServer(function(input, output, session) {
     })
     
     observeEvent(input$clear, {
-        dinamic$live_tocke_x = c()
-        dinamic$live_tocke_y = c()
+        dinamic$live_tocke_x = list()
+        dinamic$live_tocke_y = list()
+        dinamic$selectedcurve = 0
         dinamic$selectedpoint = 0
         dinamic$tocke = list()
         dinamic$activename = 1
@@ -50,56 +56,107 @@ shinyServer(function(input, output, session) {
     ###
     
     observeEvent(input$mode, {
+        dinamic$selectedcurve = 0
         dinamic$selectedpoint = 0
     })
     
-    ### plot mouse contol
+    
+    ### clicking functions ###
+    curveclicked = function(x, y){
+        nearest = 1000.0
+        sel = 0
+        for (i in 1:length(dinamic$live_tocke_x)) {
+            for(j in 1:length(dinamic$live_tocke_x[[i]])){
+                len = (x - dinamic$live_tocke_x[[i]][j])^2 +
+                      (y - dinamic$live_tocke_y[[i]][j])^2
+                if(len < nearest){
+                    sel = i
+                    nearest = len
+                }
+            }
+        }
+        return(sel)
+    }
+    
+    ## called when curveselected != 0
+    pointclicked = function(x, y){
+        nearest = 1000.0
+        sel = 0
+        for (i in 1:length(dinamic$live_tocke_x[[dinamic$selectedcurve]])) {
+            len = (x - dinamic$live_tocke_x[[dinamic$selectedcurve]][i])^2 +
+                  (y - dinamic$live_tocke_y[[dinamic$selectedcurve]][i])^2
+            if(len < nearest){
+                sel = i
+                nearest = len
+            }
+        }
+        return(sel)
+    }
+    ###
+    
+    ### plot mouse control
     observeEvent(input$canvasclick, {
-        if(input$mode == 'Adding'){
-            dinamic$live_tocke_x = c(dinamic$live_tocke_x, input$canvasclick$x)
-            dinamic$live_tocke_y = c(dinamic$live_tocke_y, input$canvasclick$y)
-        }else if(input$mode == 'Moving live point'){
-            if(dinamic$selectedpoint == 0){
-                nearest_len = 1000.0
-                n = length(dinamic$live_tocke_x)
-                if(n > 0){
-                    for(i in 1:n){
-                        len = (input$canvasclick$x - dinamic$live_tocke_x[i])^2 +
-                              (input$canvasclick$y - dinamic$live_tocke_y[i])^2
-                        if(len < nearest_len){
-                            dinamic$selectedpoint = i
-                            nearest_len = len
-                        }
-                    }
+        if(input$mode == 'Adding to curve'){
+            if(dinamic$selectedcurve == 0){
+                if(length(dinamic$live_tocke_x) > 0){
+                    dinamic$selectedcurve = curveclicked(input$canvasclick$x,
+                                                         input$canvasclick$y)
+                }else{ ##no curve to add to
+                    updateSelectInput(session, 'mode', 'Mode:',
+                                      selected = 'New curve')
                 }
             }else{
-                dinamic$live_tocke_x[dinamic$selectedpoint] = input$canvasclick$x
-                dinamic$live_tocke_y[dinamic$selectedpoint] = input$canvasclick$y
-                dinamic$selectedpoint = 0
+                dinamic$live_tocke_x[[dinamic$selectedcurve]] = c(dinamic$live_tocke_x[[dinamic$selectedcurve]], input$canvasclick$x)
+                dinamic$live_tocke_y[[dinamic$selectedcurve]] = c(dinamic$live_tocke_y[[dinamic$selectedcurve]], input$canvasclick$y)
+            }
+        }else if(input$mode == 'New curve'){
+            nxt = length(dinamic$live_tocke_x) + 1
+            dinamic$live_tocke_x[[nxt]] = c(input$canvasclick$x)
+            dinamic$live_tocke_y[[nxt]] = c(input$canvasclick$y)
+            updateSelectInput(session, 'mode', 'Mode:',
+                              selected = 'Adding to curve')
+        }else if(input$mode == 'Moving live point'){
+            if(dinamic$selectedcurve == 0){
+                if(length(dinamic$live_tocke_x) > 0){
+                    dinamic$selectedcurve = curveclicked(input$canvasclick$x,
+                                                         input$canvasclick$y)
+                }else{ ##no curve to add to
+                    updateSelectInput(session, 'mode', 'Mode:',
+                                      selected = 'New curve')
+                }
+            }else{
+                if(dinamic$selectedpoint == 0){
+                    dinamic$selectedpoint = pointclicked(input$canvasclick$x,
+                                                         input$canvasclick$y)
+                }else{
+                    dinamic$live_tocke_x[[dinamic$selectedcurve]][dinamic$selectedpoint] = input$canvasclick$x
+                    dinamic$live_tocke_y[[dinamic$selectedcurve]][dinamic$selectedpoint] = input$canvasclick$y
+                    dinamic$selectedpoint = 0
+                }
             }
         }else{
             ##moving live curve
-            if(dinamic$selectedpoint == 0){
-                nearest_len = 1000.0
-                n = length(dinamic$live_tocke_x)
-                if(n > 0){
-                    for(i in 1:n){
-                        len = (input$canvasclick$x - dinamic$live_tocke_x[i])^2 +
-                            (input$canvasclick$y - dinamic$live_tocke_y[i])^2
-                        if(len < nearest_len){
-                            dinamic$selectedpoint = i
-                            nearest_len = len
-                        }
-                    }
+            if(dinamic$selectedcurve == 0){
+                if(length(dinamic$live_tocke_x) > 0){
+                    dinamic$selectedcurve = curveclicked(input$canvasclick$x,
+                                                         input$canvasclick$y)
+                }else{ ##no curve to add to
+                    updateSelectInput(session, 'mode', 'Mode:',
+                                      selected = 'New curve')
                 }
             }else{
-                dx = input$canvasclick$x - dinamic$live_tocke_x[dinamic$selectedpoint]
-                dy = input$canvasclick$y - dinamic$live_tocke_y[dinamic$selectedpoint]
-                for(i in 1:length(dinamic$live_tocke_x)){
-                    dinamic$live_tocke_x[i] = dinamic$live_tocke_x[i] + dx
-                    dinamic$live_tocke_y[i] = dinamic$live_tocke_y[i] + dy
+                if(dinamic$selectedpoint == 0){
+                    dinamic$selectedpoint = pointclicked(input$canvasclick$x,
+                                                         input$canvasclick$y)
+                }else{
+                    dx = input$canvasclick$x - dinamic$live_tocke_x[[dinamic$selectedcurve]][dinamic$selectedpoint]
+                    dy = input$canvasclick$y - dinamic$live_tocke_y[[dinamic$selectedcurve]][dinamic$selectedpoint]
+                    for(i in 1:length(dinamic$live_tocke_x[[dinamic$selectedcurve]])){
+                        dinamic$live_tocke_x[[dinamic$selectedcurve]][i] = dinamic$live_tocke_x[[dinamic$selectedcurve]][i] + dx
+                        dinamic$live_tocke_y[[dinamic$selectedcurve]][i] = dinamic$live_tocke_y[[dinamic$selectedcurve]][i] + dy
+                    }
+                    dinamic$selectedpoint = 0
                 }
-                dinamic$selectedpoint = 0
             }
         }
     })
@@ -107,17 +164,21 @@ shinyServer(function(input, output, session) {
     observeEvent(input$canvashover, {
         if(!is.null(input$canvashover)){
             if(input$mode == 'Moving live point'){
-                if(dinamic$selectedpoint > 0){
-                    dinamic$live_tocke_x[dinamic$selectedpoint] = input$canvashover$x
-                    dinamic$live_tocke_y[dinamic$selectedpoint] = input$canvashover$y
+                if(dinamic$selectedcurve > 0){
+                    if(dinamic$selectedpoint > 0){
+                        dinamic$live_tocke_x[[dinamic$selectedcurve]][dinamic$selectedpoint] = input$canvashover$x
+                        dinamic$live_tocke_y[[dinamic$selectedcurve]][dinamic$selectedpoint] = input$canvashover$y
+                    }
                 }
             }else if(input$mode == 'Moving live curve'){
-                if(dinamic$selectedpoint > 0){
-                    dx = input$canvashover$x - dinamic$live_tocke_x[dinamic$selectedpoint]
-                    dy = input$canvashover$y - dinamic$live_tocke_y[dinamic$selectedpoint]
-                    for(i in 1:length(dinamic$live_tocke_x)){
-                        dinamic$live_tocke_x[i] = dinamic$live_tocke_x[i] + dx
-                        dinamic$live_tocke_y[i] = dinamic$live_tocke_y[i] + dy
+                if(dinamic$selectedcurve > 0){
+                    if(dinamic$selectedpoint > 0){
+                        dx = input$canvashover$x - dinamic$live_tocke_x[[dinamic$selectedcurve]][dinamic$selectedpoint]
+                        dy = input$canvashover$y - dinamic$live_tocke_y[[dinamic$selectedcurve]][dinamic$selectedpoint]
+                        for(i in 1:length(dinamic$live_tocke_x[[dinamic$selectedcurve]])){
+                            dinamic$live_tocke_x[[dinamic$selectedcurve]][i] = dinamic$live_tocke_x[[dinamic$selectedcurve]][i] + dx
+                            dinamic$live_tocke_y[[dinamic$selectedcurve]][i] = dinamic$live_tocke_y[[dinamic$selectedcurve]][i] + dy
+                        }
                     }
                 }
             }
@@ -126,34 +187,43 @@ shinyServer(function(input, output, session) {
     ###
     
     ### curve control
-    observeEvent(input$removeCurve, {
-        dinamic$live_tocke_x = c()
-        dinamic$live_tocke_y = c()
+    observeEvent(input$selectCurve, {
         dinamic$selectedpoint = 0
+        dinamic$selectedcurve = 0
+        if(input$mode == 'New curve'){
         updateSelectInput(session, 'mode', 'Mode:',
-                    choices = c('Adding',
-                                'Moving live point',
-                                'Moving live curve'),
-                    selected = 'Adding')
+                          selected = 'Adding to curve')
+        }
+    })
+    
+    observeEvent(input$removeCurve, {
+        if(dinamic$selectedcurve > 0){
+            dinamic$live_tocke_x[[dinamic$selectedcurve]] = NULL
+            dinamic$live_tocke_y[[dinamic$selectedcurve]] = NULL
+            dinamic$selectedpoint = 0
+            dinamic$selectedcurve = 0
+            updateSelectInput(session, 'mode', 'Mode:',
+                              selected = 'New curve')
+        }
     })
     
     observeEvent(input$addCurve, {
-        mat = matrix(nrow = 2, ncol = length(dinamic$live_tocke_x))
-        mat[1,] = dinamic$live_tocke_x
-        mat[2,] = dinamic$live_tocke_y
-        
-        dinamic$tocke[[as.character(dinamic$activename)]] = mat
-        
-        dinamic$activename = dinamic$activename + 1
-        
-        dinamic$live_tocke_x = c()
-        dinamic$live_tocke_y = c()
-        dinamic$selectedpoint = 0
-        updateSelectInput(session, 'mode', 'Mode:',
-                          choices = c('Adding',
-                                      'Moving live point',
-                                      'Moving live curve'),
-                          selected = 'Adding')
+        if(dinamic$selectedcurve > 0){
+            mat = matrix(nrow = 2, ncol = length(dinamic$live_tocke_x[[dinamic$selectedcurve]]))
+            mat[1,] = dinamic$live_tocke_x[[dinamic$selectedcurve]]
+            mat[2,] = dinamic$live_tocke_y[[dinamic$selectedcurve]]
+            
+            dinamic$tocke[[as.character(dinamic$activename)]] = mat
+            
+            dinamic$activename = dinamic$activename + 1
+            
+            dinamic$live_tocke_x[[dinamic$selectedcurve]] = NULL
+            dinamic$live_tocke_y[[dinamic$selectedcurve]] = NULL
+            dinamic$selectedpoint = 0
+            dinamic$selectedcurve = 0
+            updateSelectInput(session, 'mode', 'Mode:',
+                              selected = 'New curve')
+        }
     })
     ###
     
@@ -176,29 +246,47 @@ shinyServer(function(input, output, session) {
     ###
     
     output$canvas <- renderPlot({
-        n = length(dinamic$live_tocke_x)
-        t_series = seq(0,1,0.01)
-        plot(dinamic$live_tocke_x,
-             dinamic$live_tocke_y,
+        plot(c(), c(), 
              xlim = c(0,1),
              ylim = c(0,1),
-             col = 'blue', type = 'b',
              xlab = 'x',
              ylab = 'y')
-        if(dinamic$selectedpoint > 0){
-            points(dinamic$live_tocke_x[dinamic$selectedpoint],
-                   dinamic$live_tocke_y[dinamic$selectedpoint],
-                   col = 'red', cex = 1.3)
+        t_series = seq(0,1,0.01)
+        n_kr = length(dinamic$live_tocke_x)
+        if(n_kr > 0){
+            for(i in 1:n_kr){
+                n = length(dinamic$live_tocke_x[[i]])
+                colr = 'blue'
+                thiscurve = (i == dinamic$selectedcurve)
+                if(thiscurve){
+                    colr = 'green'
+                }
+                lines(dinamic$live_tocke_x[[i]],
+                      dinamic$live_tocke_y[[i]],
+                      col = colr)
+                points(dinamic$live_tocke_x[[i]],
+                       dinamic$live_tocke_y[[i]],
+                       col = colr)
+                if(thiscurve){
+                    if(dinamic$selectedpoint > 0){
+                        points(dinamic$live_tocke_x[[i]][dinamic$selectedpoint],
+                               dinamic$live_tocke_y[[i]][dinamic$selectedpoint],
+                               col = 'red', cex = 1.4)
+                    }
+                }
+                if(n > 1){
+                    lb = matrix(nrow = 2, ncol = n)
+                    lb[1,] = dinamic$live_tocke_x[[i]]
+                    lb[2,] = dinamic$live_tocke_y[[i]]
+                    live_krivulja = decasteljau(lb, t_series)
+                    lines(live_krivulja[1,],
+                          live_krivulja[2,],
+                          col = colr)
+                }
+            }
         }
-        if(n > 1){
-            lb = matrix(nrow = 2, ncol = n)
-            lb[1,] = dinamic$live_tocke_x
-            lb[2,] = dinamic$live_tocke_y
-            live_krivulja = decasteljau(lb, t_series)
-            lines(live_krivulja[1,],
-                  live_krivulja[2,],
-                  col = 'green')
-        }
+        
+        ##fiksne krivulje
         for (kr in names(dinamic$tocke)) {
             b = dinamic$tocke[[kr]]
             tocke = decasteljau(b,
