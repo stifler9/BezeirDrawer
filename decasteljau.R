@@ -1,3 +1,4 @@
+# matrix of decasteljau algorithm
 decasteljau_matr = function(b, t){
   n = dim(b)[2]
   if(n == 1){
@@ -34,5 +35,39 @@ decasteljau = function(b, t_series){
   for(x in 1:tl){
     rez[,x] = decasteljau_p(b, t_series[x])
   }
+  return(rez)
+}
+
+# curve from t=0 to t = tplus
+curveplus = function(b, tplus){
+  dim = dim(b)[1]
+  n = dim(b)[2]
+  matr = decasteljau_matr(b, tplus)
+  rez = matrix(nrow = dim, ncol = n)
+  for(i in 1:dim){
+    rez[i,] = matr[[i]][,1]
+  }
+  return(rez)
+}
+
+# curve from t=tminus to t = 1
+curveminus = function(b, tminus){
+  dim = dim(b)[1]
+  n = dim(b)[2]
+  matr = decasteljau_matr(b, tminus)
+  rez = matrix(nrow = dim, ncol = n)
+  for(i in 1:dim){
+    for(j in 1:n) {
+      rez[i,j] = matr[[i]][(n-j+1),j]
+    }
+  }
+  return(rez)
+}
+
+# split curve to 2 with same amount of points
+splitcurve = function(b, tmid){
+  rez = list()
+  rez[[1]] = curveplus(b, tmid)
+  rez[[2]] = curveminus(b, tmid)
   return(rez)
 }

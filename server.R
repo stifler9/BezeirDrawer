@@ -14,6 +14,8 @@ shinyServer(function(input, output, session) {
     dinamic$activename = 1
     
     dinamic$cp_visible = TRUE
+    ### Down extend, Up extend, Split
+    dinamic$new_t_enum = 2
     
     ### file actions
     observeEvent(input$shrani, {
@@ -56,8 +58,12 @@ shinyServer(function(input, output, session) {
     ###
     
     observeEvent(input$mode, {
-        dinamic$selectedcurve = 0
-        dinamic$selectedpoint = 0
+        if(input$mode == 'New curve'){
+            dinamic$selectedcurve = 0
+            dinamic$selectedpoint = 0
+        }else{
+            dinamic$selectedpoint = 0
+        }
     })
     
     
@@ -207,6 +213,21 @@ shinyServer(function(input, output, session) {
         }
     })
     
+    observeEvent(input$removePoint, {
+        if(dinamic$selectedpoint > 0){
+            if(length(dinamic$live_tocke_x[[dinamic$selectedcurve]]) > 1){
+                dinamic$live_tocke_x[[dinamic$selectedcurve]] = dinamic$live_tocke_x[[dinamic$selectedcurve]][-c(dinamic$selectedpoint)]
+                dinamic$live_tocke_y[[dinamic$selectedcurve]] = dinamic$live_tocke_y[[dinamic$selectedcurve]][-c(dinamic$selectedpoint)]
+                dinamic$selectedpoint = 0
+            }else{
+                dinamic$live_tocke_x[[dinamic$selectedcurve]] = NULL
+                dinamic$live_tocke_y[[dinamic$selectedcurve]] = NULL
+                dinamic$selectedpoint = 0
+                dinamic$selectedcurve = 0
+            }
+        }
+    })
+    
     observeEvent(input$addCurve, {
         if(dinamic$selectedcurve > 0){
             mat = matrix(nrow = 2, ncol = length(dinamic$live_tocke_x[[dinamic$selectedcurve]]))
@@ -223,6 +244,70 @@ shinyServer(function(input, output, session) {
             dinamic$selectedcurve = 0
             updateSelectInput(session, 'mode', 'Mode:',
                               selected = 'New curve')
+        }
+    })
+    ###
+    
+    ### curve extending/expanding
+    observeEvent(input$new_t, {
+        tryCatch({
+            if(input$new_t >= 1){
+                dinamic$new_t_enum = 2
+            }else if(input$new_t > 0){
+                dinamic$new_t_enum = 3
+            }else{
+                dinamic$new_t_enum = 1
+            }
+        },
+        error=function(cond) {},
+        warning=function(cond) {}
+        )
+    })
+    
+    output$new_t_action <- renderUI({
+        lbl = 'Split'
+        if(dinamic$new_t_enum == 1){
+            lbl = 'Down extend'
+        }else if(dinamic$new_t_enum == 2){
+            lbl = 'Up extend'
+        }
+        actionButton('do_new_t', lbl,
+                     style = 'border-color: #ab07be')
+    })
+    
+    ### new t action
+    observeEvent(input$do_new_t, {
+        if(dinamic$selectedcurve > 0){
+            dinamic$selectedpoint = 0
+            pre_t = input$new_t
+            n = length(dinamic$live_tocke_x[[dinamic$selectedcurve]])
+            points = matrix(nrow = 2, ncol = n)
+            points[1,] = dinamic$live_tocke_x[[dinamic$selectedcurve]]
+            points[2,] = dinamic$live_tocke_y[[dinamic$selectedcurve]]
+            if(dinamic$new_t_enum == 1){
+                ## down extend
+                newpoints = curveminus(points, pre_t)
+                dinamic$live_tocke_x[[dinamic$selectedcurve]] = newpoints[1,]
+                dinamic$live_tocke_y[[dinamic$selectedcurve]] = newpoints[2,]
+                updateNumericInput(session, 'new_t',
+                                   value = round((-pre_t)/(1-pre_t), 3))
+            }else if(dinamic$new_t_enum == 2){
+                ## up extend
+                newpoints = curveplus(points, pre_t)
+                dinamic$live_tocke_x[[dinamic$selectedcurve]] = newpoints[1,]
+                dinamic$live_tocke_y[[dinamic$selectedcurve]] = newpoints[2,]
+                updateNumericInput(session, 'new_t',
+                                   value = round(1/(1+pre_t), 3))
+            }else{
+                ## split
+                newpoints = splitcurve(points, pre_t)
+                dinamic$live_tocke_x[[dinamic$selectedcurve]] = newpoints[[1]][1,]
+                dinamic$live_tocke_y[[dinamic$selectedcurve]] = newpoints[[1]][2,]
+                m = length(dinamic$live_tocke_x)
+                dinamic$live_tocke_x[[m + 1]] = newpoints[[2]][1,]
+                dinamic$live_tocke_y[[m + 1]] = newpoints[[2]][2,]
+                ## maybe todo new t
+            }
         }
     })
     ###
@@ -259,11 +344,12 @@ shinyServer(function(input, output, session) {
                 colr = 'blue'
                 thiscurve = (i == dinamic$selectedcurve)
                 if(thiscurve){
-                    colr = 'green'
+                    colr = 'forestgreen'
                 }
                 lines(dinamic$live_tocke_x[[i]],
                       dinamic$live_tocke_y[[i]],
-                      col = colr)
+                      col = colr,
+                      lty = 4)
                 points(dinamic$live_tocke_x[[i]],
                        dinamic$live_tocke_y[[i]],
                        col = colr)
