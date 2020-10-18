@@ -47,18 +47,14 @@ shinyUI(fluidPage(
                         fluidRow(
                             column(4,
                                    actionButton('removeCurve', 'Remove curve',
-                                                style = 'border-color: #d20000')
+                                                style = 'border: 2px solid #d20000')
                             ),
                             column(4,
                                    actionButton('removePoint', 'Remove point',
-                                                style = 'border-color: #d20000')
+                                                style = 'border: 2px solid #d20000')
                             )
                         )
                     )
-                    ### todo remove selected point
-                    #column(4,
-                    #       actionButton('removePoint', 'Remove selected point')
-                    #)
                 ),
                 offset = 1
             ),
@@ -73,7 +69,7 @@ shinyUI(fluidPage(
             column(4,
                    wellPanel(
                         uiOutput('cp_visibility'),
-                        numericInput('new_t', 'To which t:',
+                        numericInput('new_t', 'To which t (curve: in [0,1]):',
                                      value = 1.0,
                                      step = 0.01),
                         uiOutput('new_t_action')

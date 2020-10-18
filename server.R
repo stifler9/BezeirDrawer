@@ -14,7 +14,7 @@ shinyServer(function(input, output, session) {
     dinamic$activename = 1
     
     dinamic$cp_visible = TRUE
-    ### Down extend, Up extend, Split
+    ### Down extend(1), Up extend(2), Split(3)
     dinamic$new_t_enum = 2
     
     ### file actions
@@ -272,7 +272,7 @@ shinyServer(function(input, output, session) {
             lbl = 'Up extend'
         }
         actionButton('do_new_t', lbl,
-                     style = 'border-color: #ab07be')
+                     style = 'border-color: #ab07be; border-radius: 20%')
     })
     
     ### new t action
@@ -297,7 +297,7 @@ shinyServer(function(input, output, session) {
                 dinamic$live_tocke_x[[dinamic$selectedcurve]] = newpoints[1,]
                 dinamic$live_tocke_y[[dinamic$selectedcurve]] = newpoints[2,]
                 updateNumericInput(session, 'new_t',
-                                   value = round(1/(1+pre_t), 3))
+                                   value = round(1/pre_t, 3))
             }else{
                 ## split
                 newpoints = splitcurve(points, pre_t)
@@ -326,7 +326,8 @@ shinyServer(function(input, output, session) {
         if(dinamic$cp_visible){
             lbl = 'Hide control points'
         }
-        actionButton('cp_vis_change', lbl)
+        actionButton('cp_vis_change', lbl,
+                     style = 'border-radius: 20%')
     })
     ###
     
@@ -349,17 +350,10 @@ shinyServer(function(input, output, session) {
                 lines(dinamic$live_tocke_x[[i]],
                       dinamic$live_tocke_y[[i]],
                       col = colr,
-                      lty = 4)
+                      lty = 2)
                 points(dinamic$live_tocke_x[[i]],
                        dinamic$live_tocke_y[[i]],
                        col = colr)
-                if(thiscurve){
-                    if(dinamic$selectedpoint > 0){
-                        points(dinamic$live_tocke_x[[i]][dinamic$selectedpoint],
-                               dinamic$live_tocke_y[[i]][dinamic$selectedpoint],
-                               col = 'red', cex = 1.4)
-                    }
-                }
                 if(n > 1){
                     lb = matrix(nrow = 2, ncol = n)
                     lb[1,] = dinamic$live_tocke_x[[i]]
@@ -368,6 +362,38 @@ shinyServer(function(input, output, session) {
                     lines(live_krivulja[1,],
                           live_krivulja[2,],
                           col = colr)
+                    if(thiscurve){
+                        ## if new_t is not numeric
+                        tryCatch({
+                            new_t = input$new_t
+                            if(new_t > 1){
+                                extendedcurve = decasteljau(lb, (t_series*(new_t-1) + 1))
+                                lines(extendedcurve[1,],
+                                      extendedcurve[2,],
+                                      col = '#ab07be')
+                            }else if(new_t < 0){
+                                extendedcurve = decasteljau(lb, (t_series*new_t))
+                                lines(extendedcurve[1,],
+                                      extendedcurve[2,],
+                                      col = '#ab07be')
+                            }
+                            tpoint = decasteljau_p(lb, new_t)
+                            points(tpoint[1,],
+                                   tpoint[2,],
+                                   col = '#ab07be',
+                                   cex = 1.2)
+                        },
+                        error=function(cond) {},
+                        warning=function(cond) {}
+                        )
+                    }
+                }
+                if(thiscurve){
+                    if(dinamic$selectedpoint > 0){
+                        points(dinamic$live_tocke_x[[i]][dinamic$selectedpoint],
+                               dinamic$live_tocke_y[[i]][dinamic$selectedpoint],
+                               col = 'red', cex = 1.4)
+                    }
                 }
             }
         }
